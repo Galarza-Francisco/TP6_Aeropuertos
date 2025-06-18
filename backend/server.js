@@ -7,16 +7,14 @@ const Database = require('./database');
 const app = express();
 const PORT = process.env.PORT || 3000;
 
-// Middlewares
 app.use(cors());
 app.use(express.json());
 
-// Instancia de base de datos
+// instacnair bbdd
 const database = new Database();
 
-// CRUD de Aeropuertos
 
-// GET /airports - Listar todos los aeropuertos
+// listar
 app.get('/airports', async (req, res) => {
   try {
     const { airports } = database.getCollections();
@@ -24,36 +22,33 @@ app.get('/airports', async (req, res) => {
     res.json(allAirports);
   } catch (error) {
     console.error('Error obteniendo aeropuertos:', error);
-    res.status(500).json({ error: 'Error interno del servidor' });
+    res.status(500).json({ error: 'rror del servidor' });
   }
 });
 
-// GET /airports/popular - Aeropuertos más populares (DEBE IR ANTES de /:iata_code)
+// mas populares
 app.get('/airports/popular', async (req, res) => {
   try {
     const { popularity } = database.getRedisClients();
     const { airports } = database.getCollections();
 
-    console.log('🏆 Solicitando aeropuertos populares...');
+    console.log('buscando populares...');
 
-    // Usar el método correcto de Redis v4
+    // uso este metodo por la version 4 de redis
     const popularData = await popularity.zRangeWithScores('airport_popularity', 0, 9, { REV: true });
     
-    console.log('📊 Datos de Redis:', popularData);
+    console.log('datos de redis', popularData);
 
     if (popularData.length === 0) {
-      console.log('⚠️ No hay datos de popularidad');
+      console.log('no hay datos de popu');
       return res.json([]);
     }
 
-    // Convertir resultado de Redis a formato útil
     const result = [];
     
     for (const item of popularData) {
       const iataCode = item.value;
       const score = item.score;
-      
-      console.log(`🔍 Buscando aeropuerto: ${iataCode} con ${score} visitas`);
       
       const airport = await airports.findOne({ iata_faa: iataCode });
       if (airport) {
@@ -61,37 +56,41 @@ app.get('/airports/popular', async (req, res) => {
           ...airport,
           visits: parseInt(score)
         });
-        console.log(`✅ Encontrado: ${airport.name}`);
+        console.log(`encontre: ${airport.name}`);
       } else {
-        console.log(`❌ No encontrado en MongoDB: ${iataCode}`);
+        console.log(`no encontre ${iataCode}`);
       }
     }
 
-    console.log(`📈 Retornando ${result.length} aeropuertos populares`);
+    console.log(`devuelvo ${result.length} populares`);
     res.json(result);
   } catch (error) {
-    console.error('❌ Error obteniendo aeropuertos populares:', error);
-    res.status(500).json({ error: 'Error interno del servidor' });
+    console.error('error al obtener populares:', error);
+    res.status(500).json({ error: 'error del servidor' });
   }
 });
 
-// Consultas Geoespaciales
 
-// GET /airports/nearby - Buscar aeropuertos cercanos
+
+
+
+// CONSULTAS
+
+// bucsar cercanos
 app.get('/airports/nearby', async (req, res) => {
   try {
     const { lat, lng, radius } = req.query;
 
     if (!lat || !lng || !radius) {
-      return res.status(400).json({ error: 'Parámetros requeridos: lat, lng, radius' });
+      return res.status(400).json({ error: 'necesito los parametros maquina: lat, lng, radius' });
     }
 
     const { geo } = database.getRedisClients();
     const { airports } = database.getCollections();
 
-    console.log(`🗺️ Buscando aeropuertos cerca de ${lat}, ${lng} en radio ${radius}km`);
+    console.log(`buscando cerca de ${lat}, ${lng} en radio ${radius}km`);
 
-    // Usar la sintaxis correcta para Redis v4
+    // aca tuve que buscar porque jodia con la sintaxis en la version 4 chota
     const nearbyIataCodes = await geo.geoSearchWith(
       'airports-geo',
       {
@@ -109,29 +108,29 @@ app.get('/airports/nearby', async (req, res) => {
       ['WITHDIST']
     );
 
-    console.log('📍 Aeropuertos cercanos encontrados:', nearbyIataCodes);
+    console.log('cercanos encontrados:', nearbyIataCodes);
 
     if (nearbyIataCodes.length === 0) {
       return res.json([]);
     }
 
-    // Extraer solo los códigos IATA
+    // saco codigo IATA
     const codes = nearbyIataCodes.map(item => item.member);
 
-    // Obtener detalles completos de MongoDB
+    // traigo detalle 
     const nearbyAirports = await airports.find({
       iata_faa: { $in: codes }
     }).toArray();
 
-    console.log(`✅ Retornando ${nearbyAirports.length} aeropuertos cercanos`);
+    console.log(`devuelvo ${nearbyAirports.length} aeropuertos cercanos`);
     res.json(nearbyAirports);
   } catch (error) {
-    console.error('❌ Error buscando aeropuertos cercanos:', error);
+    console.error('error buscando aeropuertos cerca:', error);
     res.status(500).json({ error: 'Error interno del servidor' });
   }
 });
 
-// GET /airports/:iata_code - Obtener aeropuerto específico y aumentar popularidad
+// traer especifico y aumenta la popularidad
 app.get('/airports/:iata_code', async (req, res) => {
   try {
     const { iata_code } = req.params;
@@ -144,39 +143,39 @@ app.get('/airports/:iata_code', async (req, res) => {
       return res.status(404).json({ error: 'Aeropuerto no encontrado' });
     }
 
-    // Incrementar popularidad
+    // sube popu
     await popularity.zIncrBy('airport_popularity', 1, iata_code.toUpperCase());
 
     res.json(airport);
   } catch (error) {
-    console.error('Error obteniendo aeropuerto:', error);
+    console.error('error obteniendo aeropuerto:', error);
     res.status(500).json({ error: 'Error interno del servidor' });
   }
 });
 
-// POST /airports - Crear nuevo aeropuerto
+// nuevo
 app.post('/airports', async (req, res) => {
   try {
     const airportData = req.body;
     const { airports } = database.getCollections();
     const { geo } = database.getRedisClients();
 
-    // Validar datos requeridos
+    // Vvalido datos
     if (!airportData.iata_faa || !airportData.lat || !airportData.lng) {
       return res.status(400).json({ error: 'Faltan datos requeridos: iata_faa, lat, lng' });
     }
 
-    // Verificar si ya existe
+    // ver q no exista 
     const existing = await airports.findOne({ iata_faa: airportData.iata_faa.toUpperCase() });
     if (existing) {
       return res.status(409).json({ error: 'El aeropuerto ya existe' });
     }
 
-    // Guardar en MongoDB
+    // guardo en mongo
     airportData.iata_faa = airportData.iata_faa.toUpperCase();
     const result = await airports.insertOne(airportData);
 
-    // Agregar a Redis GEO
+    // agrego a geo
     await geo.geoAdd('airports-geo', {
       longitude: parseFloat(airportData.lng),
       latitude: parseFloat(airportData.lat),
@@ -185,12 +184,12 @@ app.post('/airports', async (req, res) => {
 
     res.status(201).json({ ...airportData, _id: result.insertedId });
   } catch (error) {
-    console.error('Error creando aeropuerto:', error);
-    res.status(500).json({ error: 'Error interno del servidor' });
+    console.error('error creando aeropuerto:', error);
+    res.status(500).json({ error: 'Error del servidor' });
   }
 });
 
-// PUT /airports/:iata_code - Actualizar aeropuerto
+// actualizar 
 app.put('/airports/:iata_code', async (req, res) => {
   try {
     const { iata_code } = req.params;
@@ -207,7 +206,7 @@ app.put('/airports/:iata_code', async (req, res) => {
       return res.status(404).json({ error: 'Aeropuerto no encontrado' });
     }
 
-    // Actualizar coordenadas en Redis GEO si cambiaron
+    // cambiar las coordenadas si las cambiaron
     if (updateData.lat && updateData.lng) {
       await geo.geoAdd('airports-geo', {
         longitude: parseFloat(updateData.lng),
@@ -220,11 +219,11 @@ app.put('/airports/:iata_code', async (req, res) => {
     res.json(updatedAirport);
   } catch (error) {
     console.error('Error actualizando aeropuerto:', error);
-    res.status(500).json({ error: 'Error interno del servidor' });
+    res.status(500).json({ error: 'Error del servidor' });
   }
 });
 
-// DELETE /airports/:iata_code - Eliminar aeropuerto
+// borrar
 app.delete('/airports/:iata_code', async (req, res) => {
   try {
     const { iata_code } = req.params;
@@ -237,26 +236,26 @@ app.delete('/airports/:iata_code', async (req, res) => {
       return res.status(404).json({ error: 'Aeropuerto no encontrado' });
     }
 
-    // Eliminar de Redis GEO y Popularidad
+    // borro de geo y la popularidad
     await geo.zRem('airports-geo', iata_code.toUpperCase());
     await popularity.zRem('airport_popularity', iata_code.toUpperCase());
 
     res.json({ message: 'Aeropuerto eliminado correctamente' });
   } catch (error) {
     console.error('Error eliminando aeropuerto:', error);
-    res.status(500).json({ error: 'Error interno del servidor' });
+    res.status(500).json({ error: 'Error del servidor' });
   }
 });
 
-// Inicialización del servidor
+// levanta server
 async function startServer() {
   try {
     await database.connect();
     await database.loadInitialData();
 
     app.listen(PORT, () => {
-      console.log(`🚀 Servidor corriendo en puerto ${PORT}`);
-      console.log(`📍 API disponible en http://localhost:${PORT}`);
+      console.log(`server en puerto ${PORT}`);
+      console.log(`api en http://localhost:${PORT}`);
     });
   } catch (error) {
     console.error('❌ Error iniciando servidor:', error);

@@ -54,17 +54,17 @@ class Database {
 
       const dataPath = path.join(__dirname, 'data', 'data_trasport.json');
       if (!fs.existsSync(dataPath)) {
-        console.log('⚠️  Archivo data_trasport.json no encontrado');
+        console.log('no se encotro data_trasport');
         return;
       }
 
       const data = JSON.parse(fs.readFileSync(dataPath, 'utf8'));
-      console.log(`📥 Cargando ${data.length} aeropuertos...`);
+      console.log(`Cargando aeropuertos...`);
 
-      // Cargar en MongoDB
+      // cargar en mongo
       await collection.insertMany(data);
 
-      // Cargar en Redis GEO
+      // carga en geo redis
       for (const airport of data) {
         if (airport.lat && airport.lng && airport.iata_faa) {
           await this.redisGeo.geoAdd('airports-geo', {
@@ -75,9 +75,9 @@ class Database {
         }
       }
 
-      console.log('✅ Datos iniciales cargados correctamente');
+      console.log('datos de inicio ok');
     } catch (error) {
-      console.error('❌ Error cargando datos iniciales:', error);
+      console.error('error cargando datos:', error);
       throw error;
     }
   }

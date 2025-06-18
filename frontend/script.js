@@ -1,23 +1,21 @@
-// Configuración de la API
 const API_BASE_URL = 'http://localhost:3000';
 
-// Variables globales
 let map;
 let markersCluster;
 let airports = [];
 
-// Inicialización del mapa
+// inicio mapa
 function initMap() {
-    // Crear el mapa centrado en el mundo
+    // centrar mapa
     map = L.map('map').setView([20, 0], 2);
 
-    // Agregar tile layer de OpenStreetMap
+    // Aagregar titulo de openstreetmap
     L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
         attribution: '© OpenStreetMap contributors',
         maxZoom: 18
     }).addTo(map);
 
-    // Inicializar cluster de marcadores
+    // inicia los marcadores
     markersCluster = L.markerClusterGroup({
         chunkedLoading: true,
         maxClusterRadius: 50
@@ -26,7 +24,7 @@ function initMap() {
     map.addLayer(markersCluster);
 }
 
-// Cargar aeropuertos desde la API
+// cargar aeropuetos
 async function loadAirports() {
     try {
         showLoading(true);
@@ -37,20 +35,20 @@ async function loadAirports() {
         }
         
         airports = await response.json();
-        console.log(`Cargados ${airports.length} aeropuertos`);
+        console.log(`carga ${airports.length} aeropuertos`);
         
         displayAirports();
         updateAirportCount();
         
     } catch (error) {
         console.error('Error cargando aeropuertos:', error);
-        alert('Error cargando los datos de aeropuertos. Verifique que el servidor esté funcionando.');
+        alert('Error cargando los datos de aeropuertos. fijate que el servidor funcione.');
     } finally {
         showLoading(false);
     }
 }
 
-// Mostrar aeropuertos en el mapa
+// mostrar en el mapa los aerop
 function displayAirports() {
     markersCluster.clearLayers();
     
@@ -62,14 +60,14 @@ function displayAirports() {
     });
 }
 
-// Crear marcador para un aeropuerto
+// creo marcador para eropuerto
 function createAirportMarker(airport) {
     const marker = L.marker([
         parseFloat(airport.lat),
         parseFloat(airport.lng)
     ]);
 
-    // Contenido del popup - verificar campos disponibles
+    // contenido de la tarjetita que muestro
     const popupContent = `
         <div class="airport-popup">
             <div class="iata-code">${airport.iata_faa || 'N/A'}</div>
@@ -84,14 +82,14 @@ function createAirportMarker(airport) {
 
     marker.bindPopup(popupContent);
 
-    // Al hacer clic, registrar visita
+    // cuando clickea q registre la visita para popu
     marker.on('click', async () => {
         try {
             const response = await fetch(`${API_BASE_URL}/airports/${airport.iata_faa}`);
             if (response.ok) {
-                console.log(`Visita registrada para ${airport.iata_faa}`);
+                console.log(`visita para ${airport.iata_faa}`);
             } else {
-                console.error(`Error registrando visita: ${response.status}`);
+                console.error(`Error visita: ${response.status}`);
             }
         } catch (error) {
             console.error('Error registrando visita:', error);
@@ -101,13 +99,13 @@ function createAirportMarker(airport) {
     return marker;
 }
 
-// Actualizar contador de aeropuertos
+// actualizar contador de aerpouetos
 function updateAirportCount() {
     const countElement = document.getElementById('airport-count');
     countElement.textContent = `${airports.length} aeropuertos`;
 }
 
-// Mostrar/ocultar loading
+// laoding
 function showLoading(show) {
     const loadingElement = document.getElementById('loading');
     if (show) {
@@ -117,10 +115,10 @@ function showLoading(show) {
     }
 }
 
-// Cargar aeropuertos populares
+// carga popu
 async function loadPopularAirports() {
     try {
-        console.log('Cargando aeropuertos populares...');
+        console.log('cargando populares...');
         const response = await fetch(`${API_BASE_URL}/airports/popular`);
         
         if (!response.ok) {
@@ -128,13 +126,13 @@ async function loadPopularAirports() {
         }
         
         const popularAirports = await response.json();
-        console.log('Aeropuertos populares cargados:', popularAirports);
+        console.log('populares cargados:', popularAirports);
         displayPopularAirports(popularAirports);
         
     } catch (error) {
         console.error('Error cargando aeropuertos populares:', error);
         
-        // Mostrar error más específico
+        // mostrar porque mierda no anda
         const listElement = document.getElementById('popular-list');
         listElement.innerHTML = `
             <div style="text-align: center; color: #666; padding: 2rem;">
@@ -149,7 +147,7 @@ async function loadPopularAirports() {
     }
 }
 
-// Mostrar aeropuertos populares en modal
+// mosrtar populares en el modal
 function displayPopularAirports(popularAirports) {
     const listElement = document.getElementById('popular-list');
     
@@ -172,67 +170,44 @@ function displayPopularAirports(popularAirports) {
     `).join('');
 }
 
-// Mostrar modal de aeropuertos populares
+// mostrar - esconder modal popu
 function showPopularModal() {
     const modal = document.getElementById('popular-modal');
     modal.classList.remove('hidden');
     loadPopularAirports();
 }
 
-// Ocultar modal
 function hidePopularModal() {
     const modal = document.getElementById('popular-modal');
     modal.classList.add('hidden');
 }
 
-// Event listeners
+
 document.addEventListener('DOMContentLoaded', () => {
-    // Inicializar mapa
+    // iniciar mapa
     initMap();
     
-    // Cargar aeropuertos
+    //carga erop
     loadAirports();
     
-    // Botón de aeropuertos populares
+    // btn popu
     document.getElementById('popular-btn').addEventListener('click', showPopularModal);
     
-    // Cerrar modal
+    // cerrar
     document.querySelector('.close').addEventListener('click', hidePopularModal);
     
-    // Cerrar modal al hacer clic fuera del contenido
+    // cerrar pero toco afuera del modal
+
     document.getElementById('popular-modal').addEventListener('click', (e) => {
         if (e.target.id === 'popular-modal') {
             hidePopularModal();
         }
     });
     
-    // Cerrar modal con ESC
+    // cerra con esc
     document.addEventListener('keydown', (e) => {
         if (e.key === 'Escape') {
             hidePopularModal();
         }
     });
 });
-
-// Funciones auxiliares para debugging
-window.searchNearby = async function(lat, lng, radius = 100) {
-    try {
-        const response = await fetch(`${API_BASE_URL}/airports/nearby?lat=${lat}&lng=${lng}&radius=${radius}`);
-        const nearby = await response.json();
-        console.log(`Aeropuertos cercanos a ${lat}, ${lng} (${radius}km):`, nearby);
-        return nearby;
-    } catch (error) {
-        console.error('Error buscando aeropuertos cercanos:', error);
-    }
-};
-
-window.getAirportInfo = async function(iataCode) {
-    try {
-        const response = await fetch(`${API_BASE_URL}/airports/${iataCode}`);
-        const airport = await response.json();
-        console.log(`Información de ${iataCode}:`, airport);
-        return airport;
-    } catch (error) {
-        console.error('Error obteniendo información del aeropuerto:', error);
-    }
-};
